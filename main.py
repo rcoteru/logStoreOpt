@@ -505,4 +505,9 @@ if __name__ == "__main__":
    print("\nRandom initial solution (human):\n", display_solution(sol, model))
    print("\nStorage cost: ", A.calc_solution_surface(sol, model))
    #print("Access cost: ", A.calc_solution_access(sol, model))
-   local_search(sol, model, A)
+   #local_search(sol, model, A)
+   
+   # TODO solve local search bugs
+   # TODO finish local search
+   # TODO add presentable output
+   # TODO unify language to english
