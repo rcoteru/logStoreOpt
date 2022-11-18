@@ -1,9 +1,12 @@
 from __future__ import annotations
+
+from functools import partial
+import multiprocessing as mp
 from copy import deepcopy
+import json
 
 import pandas as pd
 import numpy as np
-import json
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
@@ -300,8 +303,8 @@ class StorageOptimizer():
         for n in range(len(self.A)):
             for k in range(len(self.sk)):
                 if k in self.A[n]:
-                    acc[n,k] = np.array(self.A[n][k]).sum()*self.sn[n] + \
-                                np.arange(len(self.A[n][k])).sum()*self.t0
+                    acc[n,k] = len(self.A[n][k])*self.sn[n] \
+                        + ((np.array(self.A[n][k])-1)*self.t0).sum()
         return acc
 
 
@@ -320,6 +323,10 @@ class StorageOptimizer():
             return np.arange(x["height"], x["height"]+x["amount"]+1).sum()*self.t0
         
         base_time = df[["location"]].apply(_loc_time, axis=1)*df["amount"]
+
+
+        df["amount"] + df["height"]
+
         stack_time = df[["height", "amount"]].apply(_stack_time, axis=1)
 
         return (base_time + stack_time).sum()
@@ -406,7 +413,7 @@ class StorageOptimizer():
         rng = np.random.default_rng(seed=random_state)
         sol = np.zeros(len(model), dtype=int)
 
-        for k in order:
+        for k in rng.permutation(order):
             vpos = self.find_valid_locations(k, sol, model)
             # TODO change random behaviour to a more reasonable heuristic maybe?
             cpos = rng.choice(np.argwhere(vpos))
@@ -540,5 +547,48 @@ class StorageOptimizer():
         hist["neigh_size"] = hist["neigh_size"].astype(int)
         hist.set_index("iteration", inplace=True)
 
-        return c_sol, hist
+        return c_sol, c_cost, hist
 
+    def optimize_order(self, 
+            order: np.array, 
+            nreps: int = 10,
+            strategy: str = "greedy",
+            random_state: int = 0,
+            nprocs: int = mp.cpu_count()
+            ) -> pd.DataFrame:
+
+        model = self.create_model(order)
+
+        ss = np.random.SeedSequence(random_state)
+        seeds = list(ss.spawn(nreps))
+
+        B = deepcopy(self)
+        model = self.create_model(order)
+        ls_call = partial(ls, A=B, model=model, order=order, strategy=strategy)
+
+        with mp.Pool(processes=nprocs) as pool:
+            results = pool.map(ls_call, seeds)
+
+        sols = np.array([x[0] for x in results])
+        costs = np.array([x[1] for x in results])
+        hists = []
+        for i, x in enumerate(results):
+            x[2]["rep"] = i
+            hists.append(x[2])
+        hists = pd.concat(hists)
+
+        sols, counts = np.unique(sols, axis=0, return_counts=True)
+        bsol_idx = np.argmax(counts)
+
+        return self.display_solution(sols[bsol_idx,:].squeeze(), model)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+def ls(seed: int, A: StorageOptimizer, model: pd.DataFrame, 
+        order: pd.DataFrame, strategy: str):
+
+    """ Function call for parallel """
+
+    isol = A.create_initial_solution(order, model, random_state=seed)
+    bsol, cost, hist = A.local_search(isol, model, strategy=strategy)
+    return bsol, cost, hist 

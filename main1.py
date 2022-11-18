@@ -8,7 +8,7 @@ import numpy as np
 
 N = 7 # ubicaciones
 K = 3 # productos
-strategy = "greedy" # "greedy" / "explore"
+strategy = "explore" # "greedy" / "explore"
 
 # crea el almacén
 A = StorageOptimizer(t0=1)   
@@ -52,9 +52,10 @@ print("\n" + "#"*60) # muestra un resumen del pedido y el modelo generado
 print("\nOrder:\n", order)
 model = A.create_model(order)
 print("\nModel:\n", model)
-sol = A.create_initial_solution(order, model, random_state=1)
 
 print("\n" + "#"*60) # muestra la primera solucion generada aleatoriamente
+
+sol = A.create_initial_solution(order, model, random_state=1)
 
 print("\nRandom initial solution (array):\n", sol)
 print("\nRandom initial solution (human):\n", A.display_solution(sol, model))
@@ -69,7 +70,7 @@ print(" New  Access cost:", A.add_solution(sol, model).calc_access().sum())
 
 print("\n" + "#"*60) # muestra el proceso de optimización
 
-bsol, hist = A.local_search(sol, model, strategy=strategy)
+bsol, cost, hist = A.local_search(sol, model, strategy=strategy)
 print("\nTraining history:\n", hist)
 
 print("\n" + "#"*60) # muestra la solución optimizada
@@ -84,3 +85,8 @@ print(" New  Surface cost:", A.add_solution(bsol, model).calc_surface().sum())
 print("\nStor. Access cost:", A.calc_access().sum())
 print("Diff. Access cost:", A.calc_solution_access(bsol, model))
 print(" New  Access cost:", A.add_solution(bsol, model).calc_access().sum())
+
+# sols, costs, hists, dists = A.optimize_order(order, nreps=10)
+# print(sols)
+# print(costs)
+# print(dists)
