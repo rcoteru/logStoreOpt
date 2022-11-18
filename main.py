@@ -423,7 +423,7 @@ def create_initial_solution(
 
    for k in order:
       vpos = find_positions(k, sol, model, A)
-      # TODO change to a more reasonable heuristic
+      # TODO change random behaviour to a more reasonable heuristic maybe?
       cpos = rng.choice(np.argwhere(vpos))
       sol[cpos] += 1
 
@@ -471,6 +471,10 @@ def local_search(
       max_iterations: int = 10
       ) -> np.ndarray:
    
+   """ Optimizes a given solution using local search. """
+
+   if strategy not in ["greedy", "explore"]:
+      raise NotImplementedError(f"Unknown strategy '{strategy}'.")
 
    def _cost_func(scost, tcost):
       return scost + tcost
@@ -480,21 +484,57 @@ def local_search(
    c_tcost = A.calc_solution_access(c_sol, model)
    c_cost = _cost_func(c_scost, c_tcost)
 
-   for it in range(max_iterations):
+   hist = pd.DataFrame(columns=["iteration", "surface_cost", "time_cost", "cost", "neigh_size", "improved"])
+   hist.loc[len(hist)] = [0, c_scost, c_tcost, c_cost, 0, False]
+
+   for it in range(1, max_iterations+1):
 
       # greedy approach
-      for i, neigh in enumerate(neighbor_generator(c_sol, model, A)):
+      if strategy == "greedy":
 
-         n_scost = A.calc_solution_surface(neigh, model)
-         n_tcost = A.calc_solution_access(neigh,  model)
-         n_cost = _cost_func(n_scost, n_tcost)
+         improved = False
+         for idx_neigh, neigh in enumerate(neighbor_generator(c_sol, model, A)):
+            n_scost = A.calc_solution_surface(neigh, model)
+            n_tcost = A.calc_solution_access(neigh,  model)
+            n_cost = _cost_func(n_scost, n_tcost)
+            if n_cost < c_cost or idx_neigh == max_neighbors:
+               improved = True
+               c_sol = neigh
+               c_cost = n_cost
+               break
 
-         if n_cost < c_cost or i == max_neighbors:
-            c_sol = neigh
-            c_cost = n_cost
+      elif strategy == "explore":
+         
+         costs = []
+         neighs = []
+         improved = False
+         for idx_neigh, neigh in enumerate(neighbor_generator(c_sol, model, A)):
+            n_scost = A.calc_solution_surface(neigh, model)
+            n_tcost = A.calc_solution_access(neigh,  model)
+            n_cost = _cost_func(n_scost, n_tcost)
+            costs.append(n_cost)
+            neighs.append(neigh)
+            if idx_neigh == max_neighbors:
+               break
 
-   return c_sol
+         costs, neighs = np.array(costs), np.array(neighs)
+         min_loc = np.argmin(costs)
+         b_cost = costs[min_loc]
+         b_neigh = neighs[min_loc]
+         if b_cost < c_cost:
+            improved = True
+            c_cost = b_cost
+            b_neigh = b_neigh
+         
+      hist.loc[len(hist)] = [it, c_scost, c_tcost, c_cost, idx_neigh+1, improved]
+      if not improved:
+         break
 
+   hist["iteration"] = hist["iteration"].astype(int)
+   hist["neigh_size"] = hist["neigh_size"].astype(int)
+   hist.set_index("iteration", inplace=True)
+
+   return c_sol, hist
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
@@ -508,7 +548,7 @@ if __name__ == "__main__":
 
    # añade las ubicaciones
    for n in range(N):
-      sn = 2 if n%2==0 else 4
+      sn = 10 if n > N/2 else 20
       tn = np.arange(n).sum() + 1
       ln = True if n > N/2 else False
       A.add_location(sn=sn, tn=tn, ln=ln)
@@ -526,10 +566,9 @@ if __name__ == "__main__":
    for item, loc in zip(objs, locs):
       A.add_item(loc, item)
 
-   order = [1,1,0,1,2,1,0]
+   order = [1,1,0,1,2,1,0,2,1,0]
 
    print("\n" + "#"*60)
-
    print("\nStorage:\n", A)
    print("\nStorage summary:\n", A.location_summary())
    print("\nProduct summary:\n", A.product_summary())
@@ -559,7 +598,9 @@ if __name__ == "__main__":
    
    print("\n" + "#"*60)
 
-   bsol = local_search(sol, model, A)
+   bsol, hist = local_search(sol, model, A, strategy="greedy")
+   #bsol, hist = local_search(sol, model, A, strategy="explore")
+   print("\nTraining history:\n", hist)
 
    print("\n" + "#"*60)
 
