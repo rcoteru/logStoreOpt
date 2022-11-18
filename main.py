@@ -33,9 +33,13 @@ locs = [0,0,1,1,2,2]
 for item, loc in zip(objs, locs):
    A.add_item(loc, item)
 
+# pedido a optimizar
 order = [1,1,0,1,2,1,0,2,1,0]
 
-print("\n" + "#"*60)
+# ================================================================= #
+
+print("\n" + "#"*60) # muestra un resumen del almacén
+
 print("\nStorage:\n", A)
 print("\nStorage summary:\n", A.location_summary())
 print("\nProduct summary:\n", A.product_summary())
@@ -43,14 +47,14 @@ print("\nProduct summary:\n", A.product_summary())
 print("\nStor. Surface cost:", A.calc_surface().sum())
 print("Stor. Access cost:", A.calc_access().sum())
 
-print("\n" + "#"*60)
+print("\n" + "#"*60) # muestra un resumen del pedido y el modelo generado
 
 print("\nOrder:\n", order)
 model = A.create_model(order)
 print("\nModel:\n", model)
 sol = A.create_initial_solution(order, model, random_state=1)
 
-print("\n" + "#"*60)
+print("\n" + "#"*60) # muestra la primera solucion generada aleatoriamente
 
 print("\nRandom initial solution (array):\n", sol)
 print("\nRandom initial solution (human):\n", A.display_solution(sol, model))
@@ -63,12 +67,12 @@ print("\nStor. Access cost:", A.calc_access().sum())
 print("Diff. Access cost:", A.calc_solution_access(sol, model))
 print(" New  Access cost:", A.add_solution(sol, model).calc_access().sum())
 
-print("\n" + "#"*60)
+print("\n" + "#"*60) # muestra el proceso de optimización
 
 bsol, hist = A.local_search(sol, model, strategy=strategy)
 print("\nTraining history:\n", hist)
 
-print("\n" + "#"*60)
+print("\n" + "#"*60) # muestra la solución optimizada
 
 print("\nOptimized solution (array):\n", bsol)
 print("\nOptimized solution (human):\n", A.display_solution(bsol, model))
