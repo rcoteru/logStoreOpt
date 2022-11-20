@@ -47,9 +47,8 @@ print("\nProduct summary:\n", A.product_summary())
 print("\nStor. Surface cost:", A.calc_surface().sum())
 print("Stor. Access cost:", A.calc_access().sum())
 
-print("\n" + "#"*60) # muestra un resumen del pedido y el modelo generado
-
 print("\nOrder:\n", order)
 
-sol = A.optimize_order(order, nreps=30)
-print(sol)
+sol = A.optimize_order(order, n_walkers=3, 
+   strategy="greedy", random_state=0)
+print("\nSolution:\n", sol)

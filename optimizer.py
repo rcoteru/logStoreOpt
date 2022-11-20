@@ -551,7 +551,7 @@ class StorageOptimizer():
 
     def optimize_order(self, 
             order: np.array, 
-            nreps: int = 10,
+            n_walkers: int = 10,
             strategy: str = "greedy",
             random_state: int = 0,
             nprocs: int = mp.cpu_count()
@@ -577,7 +577,7 @@ class StorageOptimizer():
             hists.append(x[2])
         hists = pd.concat(hists)
 
-        sols, counts = np.unique(sols, axis=0, return_counts=True)
+        sols, counts = np.unique(sols, axis=0, return_counts=True)    
         bsol_idx = np.argmax(counts)
 
         return self.display_solution(sols[bsol_idx,:].squeeze(), model)
