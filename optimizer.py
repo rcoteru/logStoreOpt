@@ -138,6 +138,7 @@ class StorageOptimizer():
         
         else:
 
+            # TODO needs fixing, generates too many stacks
             # Choose a stack automatically
             if s is None:
 

@@ -1,5 +1,6 @@
 from optimizer import StorageOptimizer
 import numpy as np
+import time
 
 N = 7 # ubicaciones
 K = 3 # productos
@@ -61,7 +62,12 @@ print(" New cost:", A.add_solution(sol, model).calc_cost())
 
 print("\n" + "#"*60) # muestra el proceso de optimización
 
+stime = time.perf_counter()
 bsol, cost, hist = A.local_search(sol, model, strategy=strategy)
+etime = time.perf_counter()
+
+print("\nTotal neighbors visited:", hist["neigh_size"].sum())
+print(f"Time elapsed: {etime-stime} s", )
 print("\nTraining history:\n", hist)
 
 print("\n" + "#"*60) # muestra la solución optimizada

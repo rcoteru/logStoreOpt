@@ -1,5 +1,6 @@
 from optimizer import StorageOptimizer
 import numpy as np
+import time
 
 N = 7 # ubicaciones
 K = 3 # productos
@@ -37,18 +38,19 @@ print("\nStorage:\n", A)
 print("\nStorage summary:\n", A.location_summary())
 print("\nProduct summary:\n", A.product_summary())
 
-print("\nStor. Surface cost:", A.calc_surface().sum())
-print("Stor. Access cost:", A.calc_access().sum())
-
 print("\nOrder:\n", order)
 
+stime = time.perf_counter()
 sol, model, hist = A.optimize_order(order, n_walkers=10, 
    strategy=strategy, random_state=0, weights=[1,1])
+etime = time.perf_counter()
 print("\nSolution:\n", A.display_solution(sol, model))
 
-print("\nStor. costs:", A.calc_cost())
-print("Diff. cost:", A.calc_solution_cost(sol, model))
-print(" New cost:", A.add_solution(sol, model).calc_cost())
+print("\nPrevious costs:", A.calc_cost())
+print("Solution cost:", A.calc_solution_cost(sol, model))
+print(" Updated cost:", A.add_solution(sol, model).calc_cost())
 
 print("\nTotal neighbors visited:", hist["neigh_size"].sum())
-print("\nTraining history:\n", hist)
+print(f"\nTime elapsed: {etime-stime} s\n")
+
+# print("Training history:\n", hist)
