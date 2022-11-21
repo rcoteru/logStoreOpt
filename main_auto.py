@@ -1,11 +1,6 @@
 from optimizer import StorageOptimizer
 import numpy as np
 
-# TODO LIST
-# ===========================
-# - treat costs as vectors
-# ===========================
-
 N = 7 # ubicaciones
 K = 3 # productos
 strategy = "explore" # "greedy" / "explore"
@@ -16,7 +11,7 @@ A = StorageOptimizer(t0=1)
 # añade las ubicaciones
 for n in range(N):
    sn = 10 if n > N/2 else 20
-   tn = 10 # + np.arange(n).sum()
+   tn = 1 + np.arange(n).sum()
    ln = True if n > N/2 else False
    A.add_location(sn=sn, tn=tn, ln=ln)
 
@@ -47,7 +42,7 @@ print("Stor. Access cost:", A.calc_access().sum())
 
 print("\nOrder:\n", order)
 
-sol, model, hist = A.optimize_order(order, n_walkers=20, 
+sol, model, hist = A.optimize_order(order, n_walkers=10, 
    strategy=strategy, random_state=0, weights=[1,1])
 print("\nSolution:\n", A.display_solution(sol, model))
 
@@ -55,4 +50,5 @@ print("\nStor. costs:", A.calc_cost())
 print("Diff. cost:", A.calc_solution_cost(sol, model))
 print(" New cost:", A.add_solution(sol, model).calc_cost())
 
-# print("\nTraining history:\n", hist)
+print("\nTotal neighbors visited:", hist["neigh_size"].sum())
+print("\nTraining history:\n", hist)

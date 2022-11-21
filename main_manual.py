@@ -1,11 +1,6 @@
 from optimizer import StorageOptimizer
 import numpy as np
 
-# TODO LIST
-# ===========================
-# - treat costs as vectors
-# ===========================
-
 N = 7 # ubicaciones
 K = 3 # productos
 strategy = "explore" # "greedy" / "explore"

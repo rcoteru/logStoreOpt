@@ -520,7 +520,7 @@ class StorageOptimizer():
                 for idx_neigh, neigh in enumerate(self.neighbor_generator(c_sol, model)):
    
                     n_vcost = self.calc_solution_cost(neigh, model)
-                    n_scost = _scalar_cost(c_vcost)
+                    n_scost = _scalar_cost(n_vcost)
 
                     if n_scost < c_scost or idx_neigh == max_neighbors:
                         improved = True
@@ -618,6 +618,7 @@ class StorageOptimizer():
         hists = pd.concat(hists)
         idx = pd.MultiIndex.from_frame(hists[["rep", "iteration"]])
         hists.set_index(idx, inplace=True)
+        hists.drop(columns=["rep"], inplace=True)
 
         sols, idx, counts = np.unique(sols, axis=0, return_counts=True, return_index=True)    
         costs = costs[idx]
