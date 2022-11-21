@@ -51,22 +51,18 @@ print("\n" + "#"*60) # muestra un resumen del pedido y el modelo generado
 
 print("\nOrder:\n", order)
 model = A.create_model(order)
-print("\nModel:\n", model)
+print("\nModel:\n", model.head(60))
 
 print("\n" + "#"*60) # muestra la primera solucion generada aleatoriamente
 
-sol = A.create_initial_solution(order, model, random_state=1)
+sol = A.create_initial_solution(order, model, random_state=1224123)
 
 print("\nRandom initial solution (array):\n", sol)
 print("\nRandom initial solution (human):\n", A.display_solution(sol, model))
 
-print("\nStor. Surface cost:", A.calc_surface().sum())
-print("Diff. Surface cost:", A.calc_solution_surface(sol, model))
-print(" New  Surface cost:", A.add_solution(sol, model).calc_surface().sum())
-
-print("\nStor. Access cost:", A.calc_access().sum())
-print("Diff. Access cost:", A.calc_solution_access(sol, model))
-print(" New  Access cost:", A.add_solution(sol, model).calc_access().sum())
+print("\nStor. costs:", A.calc_cost())
+print("Diff. cost:", A.calc_solution_cost(sol, model))
+print(" New cost:", A.add_solution(sol, model).calc_cost())
 
 print("\n" + "#"*60) # muestra el proceso de optimización
 
@@ -78,13 +74,12 @@ print("\n" + "#"*60) # muestra la solución optimizada
 print("\nOptimized solution (array):\n", bsol)
 print("\nOptimized solution (human):\n", A.display_solution(bsol, model))
 
-print("\nStor. Surface cost:", A.calc_surface().sum())
-print("Diff. Surface cost:", A.calc_solution_surface(bsol, model))
-print(" New  Surface cost:", A.add_solution(bsol, model).calc_surface().sum())
+print("\nStor. costs:", A.calc_cost())
+print("Diff. cost:", A.calc_solution_cost(bsol, model))
+print(" New cost:", A.add_solution(bsol, model).calc_cost())
 
-print("\nStor. Access cost:", A.calc_access().sum())
-print("Diff. Access cost:", A.calc_solution_access(bsol, model))
-print(" New  Access cost:", A.add_solution(bsol, model).calc_access().sum())
+print("\nStorage summary:\n", A.add_solution(bsol, model).location_summary())
+print("\nProduct summary:\n", A.add_solution(bsol, model).product_summary())
 
 # sols, costs, hists, dists = A.optimize_order(order, nreps=10)
 # print(sols)

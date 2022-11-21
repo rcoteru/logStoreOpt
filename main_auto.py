@@ -16,7 +16,7 @@ A = StorageOptimizer(t0=1)
 # añade las ubicaciones
 for n in range(N):
    sn = 10 if n > N/2 else 20
-   tn = np.arange(n).sum() + 1
+   tn = 10 # + np.arange(n).sum()
    ln = True if n > N/2 else False
    A.add_location(sn=sn, tn=tn, ln=ln)
 
@@ -38,8 +38,6 @@ order = [1,1,0,1,2,1,0,2,1,0]
 
 # ================================================================= #
 
-print("\n" + "#"*60) # muestra un resumen del almacén
-
 print("\nStorage:\n", A)
 print("\nStorage summary:\n", A.location_summary())
 print("\nProduct summary:\n", A.product_summary())
@@ -49,6 +47,12 @@ print("Stor. Access cost:", A.calc_access().sum())
 
 print("\nOrder:\n", order)
 
-sol = A.optimize_order(order, n_walkers=3, 
-   strategy="greedy", random_state=0)
-print("\nSolution:\n", sol)
+sol, model, hist = A.optimize_order(order, n_walkers=20, 
+   strategy=strategy, random_state=0, weights=[1,1])
+print("\nSolution:\n", A.display_solution(sol, model))
+
+print("\nStor. costs:", A.calc_cost())
+print("Diff. cost:", A.calc_solution_cost(sol, model))
+print(" New cost:", A.add_solution(sol, model).calc_cost())
+
+# print("\nTraining history:\n", hist)

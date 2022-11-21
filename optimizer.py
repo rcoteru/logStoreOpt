@@ -5,6 +5,7 @@ import multiprocessing as mp
 from copy import deepcopy
 import json
 
+from scipy.stats.mstats import gmean
 import pandas as pd
 import numpy as np
 
@@ -234,16 +235,17 @@ class StorageOptimizer():
             for n in range(N):
                 for k in range(K):
                     if k in self.A[n]:
-                        stacks[n,k] = [i for i, s in enumerate(self.A[n][k]) if s == self.sk[k]]
+                        stacks[n,k] = [i for i, s in enumerate(self.A[n][k]) if s == self.ak[k]]
                     else: 
                         stacks[n,k] = []
         else: 
             for n in range(N):
                 for k in range(K):
                     if k in self.A[n]:
-                        stacks[n,k] = [i for i, s in enumerate(self.A[n][k]) if s < self.sk[k]]
+                        stacks[n,k] = [i for i, s in enumerate(self.A[n][k]) if s < self.ak[k]]
                     else: 
                         stacks[n,k] = []
+                    
         return stacks
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -273,23 +275,6 @@ class StorageOptimizer():
                 surf += len(self.A[n][k])*self.sk[k]
         return surf
 
-
-    def calc_solution_surface(self, sol: np.ndarray, model: pd.DataFrame):
-
-        """ Calculate extra surface added by a solution. """
-
-        df = model.copy()
-        df.insert(0, "amount", sol)
-        df = df[df["amount"] > 0]
-        df = df[df["height"] == 0]
-        df = df[["product", "height"]].groupby("product").count()
-
-        surf = 0
-        for k, mk in df.iterrows():
-            surf += mk["height"]*self.sk[k]
-
-        return surf
-
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
     # Access time cost functions
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -303,33 +288,54 @@ class StorageOptimizer():
         for n in range(len(self.A)):
             for k in range(len(self.sk)):
                 if k in self.A[n]:
-                    acc[n,k] = len(self.A[n][k])*self.sn[n] \
+                    acc[n,k] = len(self.A[n][k])*self.tn[n] \
                         + ((np.array(self.A[n][k])-1)*self.t0).sum()
         return acc
 
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+    # Total cost functions
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-    def calc_solution_access(self, sol: np.ndarray, model: pd.DataFrame):
+    def calc_cost(self) -> np.ndarray:
 
-        """ Calculate extra access_time added by a solution. """
+        """ Calculate total cost. """
+
+        N, K = len(self.A), len(self.sk)
+        surf, time = 0.0, 0.0
+        for n in range(N):
+            for k in range(K):
+                if k in self.A[n]:
+                    surf += len(self.A[n][k])*self.sk[k]
+                    time += len(self.A[n][k])*self.tn[n] \
+                        + ((np.array(self.A[n][k])-1)*self.t0).sum()
+        
+        return np.array([surf, time])
+
+    def calc_solution_cost(self, sol: np.ndarray, model: pd.DataFrame) -> np.ndarray:
+
+        """ Calculate total cost. """
 
         df = model.copy()
         df.insert(0, "amount", sol)
         df = df[df["amount"] > 0]
 
-        def _loc_time(x: np.array):
-            return self.tn[x["location"]]
+        sdf = df[df["height"] == 0]
+        sdf = sdf[["product", "height"]].groupby("product").count().reset_index()
 
-        def _stack_time(x: np.array):
-            return np.arange(x["height"], x["height"]+x["amount"]+1).sum()*self.t0
+        def _surf(x: np.array):
+            return x["height"]*self.sk[x["product"]]
+
+        surf = sdf.apply(_surf, axis=1)
+
+        def _time(x: np.array):
+            if x["height"] == 0:
+                return self.tn[x["location"]] + (x["amount"]-1)*self.t0
+            return x["amount"]*self.t0
         
-        base_time = df[["location"]].apply(_loc_time, axis=1)*df["amount"]
+        time = df[["location", "amount", "height"]].apply(_time, axis=1)
 
+        return np.array([surf.sum(), time.sum()])
 
-        df["amount"] + df["height"]
-
-        stack_time = df[["height", "amount"]].apply(_stack_time, axis=1)
-
-        return (base_time + stack_time).sum()
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
     # Model-related methods
@@ -477,9 +483,11 @@ class StorageOptimizer():
     def local_search(self,
         sol: np.array, 
         model: pd.DataFrame, 
-        strategy: str = "greedy", # TODO
+        strategy: str = "greedy",
         max_neighbors: int = 100,
-        max_iterations: int = 10
+        max_iterations: int = 10,
+        weights: np.array = None,
+        cost_scaling: list[np.array] = None,
         ) -> np.ndarray:
    
         """ Optimizes a given solution using local search. """
@@ -487,16 +495,21 @@ class StorageOptimizer():
         if strategy not in ["greedy", "explore"]:
             raise NotImplementedError(f"Unknown strategy '{strategy}'.")
 
-        def _cost_func(scost, tcost):
-            return scost + tcost
+        def _scalar_cost(cost: np.array):
+            if cost_scaling is None:
+                return gmean(cost, weights=weights)
+            else:
+                means = cost_scaling[0]
+                stds = cost_scaling[1]
+                cost = np.divide(cost, stds)
+                return gmean(cost, weights=weights)
 
         c_sol = sol
-        c_scost = self.calc_solution_surface(c_sol, model)
-        c_tcost = self.calc_solution_access(c_sol, model)
-        c_cost = _cost_func(c_scost, c_tcost)
+        c_vcost = self.calc_solution_cost(c_sol, model)
+        c_scost = _scalar_cost(c_vcost)
 
-        hist = pd.DataFrame(columns=["iteration", "surface_cost", "time_cost", "cost", "neigh_size", "improved"])
-        hist.loc[len(hist)] = [0, c_scost, c_tcost, c_cost, 0, False]
+        hist = pd.DataFrame(columns=["iteration", "surf_cost", "time_cost", "scalar_cost", "neigh_size", "improved"])
+        hist.loc[len(hist)] = [0, c_vcost[0], c_vcost[1], c_scost, 0, False]
 
         for it in range(1, max_iterations+1):
 
@@ -505,41 +518,42 @@ class StorageOptimizer():
 
                 improved = False
                 for idx_neigh, neigh in enumerate(self.neighbor_generator(c_sol, model)):
-                    n_scost = self.calc_solution_surface(neigh, model)
-                    n_tcost = self.calc_solution_access(neigh,  model)
-                    n_cost = _cost_func(n_scost, n_tcost)
-                    if n_cost < c_cost or idx_neigh == max_neighbors:
+   
+                    n_vcost = self.calc_solution_cost(neigh, model)
+                    n_scost = _scalar_cost(c_vcost)
+
+                    if n_scost < c_scost or idx_neigh == max_neighbors:
                         improved = True
-                        c_tcost = n_tcost
+                        c_vcost = n_vcost
                         c_scost = n_scost
-                        c_cost = n_cost
                         c_sol = neigh
                         break
 
             elif strategy == "explore":
                 
-                costs = []
                 neighs = []
+                vcosts = []
+                scosts = []
                 improved = False
+
                 for idx_neigh, neigh in enumerate(self.neighbor_generator(c_sol, model)):
-                    n_scost = self.calc_solution_surface(neigh, model)
-                    n_tcost = self.calc_solution_access(neigh,  model)
-                    n_cost = _cost_func(n_scost, n_tcost)
-                    costs.append([n_scost, n_tcost, n_cost])
+                    n_vcost = self.calc_solution_cost(neigh, model)
+                    n_scost = _scalar_cost(n_vcost)
                     neighs.append(neigh)
+                    vcosts.append(n_vcost)
+                    scosts.append(n_scost)
                     if idx_neigh == max_neighbors:
                         break
                     
-                costs, neighs = np.array(costs), np.array(neighs)
-                min_loc = np.argmin(costs[:,2])
-                if costs[min_loc,2] < c_cost:
+                neighs, vcosts, scosts = np.array(neighs), np.array(vcosts), np.array(scosts)
+                min_loc = np.argmin(scosts)
+                if scosts[min_loc] < c_scost:
                     improved = True
-                    c_scost = costs[min_loc,0]
-                    c_tcost = costs[min_loc,1]
-                    c_cost = costs[min_loc,2]
                     c_sol = neighs[min_loc]
-                
-            hist.loc[len(hist)] = [it, c_scost, c_tcost, c_cost, idx_neigh+1, improved]
+                    c_vcost = vcosts[min_loc]
+                    c_scost = scosts[min_loc]
+                    
+            hist.loc[len(hist)] = [it, c_vcost[0], c_vcost[1], c_scost, idx_neigh+1, improved]
             if not improved:
                 break
 
@@ -547,48 +561,82 @@ class StorageOptimizer():
         hist["neigh_size"] = hist["neigh_size"].astype(int)
         hist.set_index("iteration", inplace=True)
 
-        return c_sol, c_cost, hist
+        return c_sol, c_scost, hist
 
     def optimize_order(self, 
             order: np.array, 
+            weights: np.array = np.ones(2),
             n_walkers: int = 10,
             strategy: str = "greedy",
-            random_state: int = 0,
-            nprocs: int = mp.cpu_count()
+            max_neighbors: int = 100,
+            max_iterations: int = 10,
+            nsols_norm: int = 100,
+            nprocs: int = mp.cpu_count(),
+            random_state: int = 0
             ) -> pd.DataFrame:
 
         model = self.create_model(order)
 
+        # create random solutions for normalization
         ss = np.random.SeedSequence(random_state)
-        seeds = list(ss.spawn(nreps))
+        seeds = list(ss.spawn(nsols_norm))
 
-        B = deepcopy(self)
+        norm_costs = []
+        for s in seeds:
+            try:
+                nsol = self.create_initial_solution(order, model, random_state=s)
+                norm_costs.append(self.calc_solution_cost(nsol, model))
+            except:
+                pass
+        norm_costs = np.array(norm_costs)
+        cost_scaling = [norm_costs.mean(axis=0), norm_costs.std(axis=0)]
+        
+        # create seeds for the different walkers
+        ss = np.random.SeedSequence(random_state)
+        seeds = list(ss.spawn(n_walkers))
+
+        # create the problem model
         model = self.create_model(order)
-        ls_call = partial(ls, A=B, model=model, order=order, strategy=strategy)
 
+        # local search function call
+        B = deepcopy(self)
+        ls_call = partial(ls, A=B, model=model, order=order, 
+            strategy=strategy, cost_scaling=cost_scaling, weights=weights,
+            max_iterations=max_iterations, max_neighbors=max_neighbors)
+
+        # run the local search walkers in parallel
         with mp.Pool(processes=nprocs) as pool:
             results = pool.map(ls_call, seeds)
 
         sols = np.array([x[0] for x in results])
         costs = np.array([x[1] for x in results])
+        
         hists = []
         for i, x in enumerate(results):
             x[2]["rep"] = i
-            hists.append(x[2])
+            hists.append(x[2].reset_index())
         hists = pd.concat(hists)
+        idx = pd.MultiIndex.from_frame(hists[["rep", "iteration"]])
+        hists.set_index(idx, inplace=True)
 
-        sols, counts = np.unique(sols, axis=0, return_counts=True)    
-        bsol_idx = np.argmax(counts)
+        sols, idx, counts = np.unique(sols, axis=0, return_counts=True, return_index=True)    
+        costs = costs[idx]
+        bsol_idx = np.argmin(costs)
 
-        return self.display_solution(sols[bsol_idx,:].squeeze(), model)
+        return sols[bsol_idx,:], model, hists
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def ls(seed: int, A: StorageOptimizer, model: pd.DataFrame, 
-        order: pd.DataFrame, strategy: str):
+def ls(
+    seed: int, 
+    A: StorageOptimizer, model: pd.DataFrame, order: pd.DataFrame, 
+    strategy: str, cost_scaling: list[np.ndarray], weights: np.array,
+    max_neighbors: int, max_iterations: int):
 
     """ Function call for parallel """
 
     isol = A.create_initial_solution(order, model, random_state=seed)
-    bsol, cost, hist = A.local_search(isol, model, strategy=strategy)
+    bsol, cost, hist = A.local_search(isol, model, strategy=strategy,
+            max_iterations=max_iterations, max_neighbors=max_neighbors,
+            cost_scaling=cost_scaling, weights=weights)
     return bsol, cost, hist 
