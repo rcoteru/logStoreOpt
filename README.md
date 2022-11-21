@@ -15,7 +15,7 @@ Small prototype for the optimization of the incoming orders to a logistic center
 
 The solutions of the the problem is found through a local search based algortihm, where several randomly generated initial solutions are optimized in parallel. 
 
-Code is pure Python with numpy/pandas.
+Code is pure Python with numpy/pandas/scipy.
 
 ## Environment / Setup
 
