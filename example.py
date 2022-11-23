@@ -1,35 +1,43 @@
+"""
+This script provides an example use case for the optimizer.
+
+@author Raúl Coterillo
+@version November 2022
+"""
+
 from optimizer import StorageOptimizer
 import numpy as np
 import time
 
-N = 7 # ubicaciones
-K = 3 # productos
-strategy = "explore" # "greedy" / "explore"
+N = 7                   # locations
+K = 3                   # products
+strategy = "explore"    # "greedy" / "explore"
+priority = [1,1]        # [surface priority, time priority]
 
-# crea el almacén
-A = StorageOptimizer(t0=1)   
+# start the optimizer
+A = StorageOptimizer(t0=5)   
 
-# añade las ubicaciones
+# add the locations
 for n in range(N):
    sn = 10 if n > N/2 else 20
    tn = 1 + np.arange(n).sum()
    ln = True if n > N/2 else False
    A.add_location(sn=sn, tn=tn, ln=ln)
 
-# añade los productos
+# add the products
 for k in range(K):
    sk = 1
    ak = 2
    pk = False if k == 2 else True
    A.add_product(sk=sk, ak=ak, pk=pk)
 
-# llenado inicial
+# add some items
 objs = [1,1,2,0,0,0]
 locs = [0,0,1,1,2,2]
 for item, loc in zip(objs, locs):
    A.add_item(loc, item)
 
-# pedido a optimizar
+# order to optimize
 order = [1,1,0,1,2,1,0,2,1,0]
 
 # ================================================================= #
@@ -42,7 +50,7 @@ print("\nOrder:\n", order)
 
 stime = time.perf_counter()
 sol, model, hist = A.optimize_order(order, n_walkers=10, 
-   strategy=strategy, random_state=0, weights=[1,1])
+   strategy=strategy, random_state=0, weights=priority)
 etime = time.perf_counter()
 print("\nSolution:\n", A.display_solution(sol, model))
 

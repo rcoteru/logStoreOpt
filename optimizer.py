@@ -1,3 +1,13 @@
+"""
+This module provides the main class for the optimization.
+
+The StorageOptimizer class contains all the data structures
+and methods to perform the optimization.
+
+@author Raúl Coterillo
+@version November 2022
+"""
+
 from __future__ import annotations
 
 from functools import partial
@@ -500,9 +510,11 @@ class StorageOptimizer():
             if cost_scaling is None:
                 return gmean(cost, weights=weights)
             else:
+                # NOTE we just divide by the mean because standard normalization 
+                # yields negative numbers, which dont work with the geometric mean.
                 means = cost_scaling[0]
-                stds = cost_scaling[1]
-                cost = np.divide(cost, stds)
+                stds = cost_scaling[1]  
+                cost = np.divide(cost, means)
                 return gmean(cost, weights=weights)
 
         c_sol = sol
