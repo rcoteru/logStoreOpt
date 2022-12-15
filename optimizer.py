@@ -648,6 +648,8 @@ class StorageOptimizer():
             random_state: int = 0
             ) -> pd.DataFrame:
 
+        """ Optimizes a given incoming order with parallel local search. """
+
         # input checks ~~~~~~~~~~~~~~~~~~~~~~
 
         if (prod_weights is not None) and (len(prod_weights) != len(self.sk)):
