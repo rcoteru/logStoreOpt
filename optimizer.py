@@ -5,7 +5,7 @@ The StorageOptimizer class contains all the data structures
 and methods to perform the optimization.
 
 @author Raúl Coterillo
-@version November 2022
+@version December 2022
 """
 
 from __future__ import annotations
