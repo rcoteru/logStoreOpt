@@ -15,7 +15,6 @@ import multiprocessing as mp
 from copy import deepcopy
 import json
 
-from scipy.stats.mstats import gmean
 import pandas as pd
 import numpy as np
 
@@ -299,8 +298,11 @@ class StorageOptimizer():
         for n in range(len(self.A)):
             for k in range(len(self.sk)):
                 if k in self.A[n]:
-                    acc[n,k] = len(self.A[n][k])*self.tn[n] \
-                        + ((np.array(self.A[n][k])-1)*self.t0).sum()
+                    # base access time
+                    acc[n,k] += len(self.A[n][k])*self.tn[n]
+                    # height access time
+                    acc[n,k] += np.array([np.arange(s).sum()*self.t0 for s in self.A[n][k]]).sum()
+
         return acc
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -319,16 +321,12 @@ class StorageOptimizer():
         for n in range(N):
             for k in range(K):
                 if k in self.A[n]:
-                    
                     # surface
                     stats[k,0] += len(self.A[n][k])*self.sk[k]
-
                     # base access time
                     stats[k,1] += len(self.A[n][k])*self.tn[n]
-
                     # height access time
                     stats[k,1] += np.array([np.arange(s).sum()*self.t0 for s in self.A[n][k]]).sum()
-
                     # item count
                     stats[k,2] += np.array(self.A[n][k]).sum()
         
@@ -375,30 +373,32 @@ class StorageOptimizer():
 
         return sol_stats
 
-    @staticmethod
-    def calc_goal_functions(
+    def calc_goal_functions(self,
             stats: np.ndarray, 
             prod_weights: np.ndarray = None
             ) -> np.ndarray:
 
         """ Calculate the goal functions from previously gathered stats. """
 
-        if prod_weights is None:
-            prod_weights = np.ones(stats.shape[0])
+
+        base_weights = self.count_items().sum(axis=0)
+        base_weights = base_weights + stats[:,2]
+
+        if prod_weights is not None:
+            prod_weights = np.multiply(base_weights, prod_weights)
+        else:
+            prod_weights = base_weights
 
         gfs = np.zeros(2)
 
         # surface goal function
         gfs[0] = stats[:,0].sum()
 
-
-        # TODO: switch to geometric mean?
         # average access time 
         prod_weights = np.array(prod_weights)
         for k in range(stats.shape[0]):
             if stats[k,2] != 0:
                 gfs[1] += stats[k,1]/stats[k,2]*prod_weights[k]
-        gfs[1] = gfs[1] / prod_weights.sum()
 
         return gfs
 
@@ -486,7 +486,6 @@ class StorageOptimizer():
 
         for k in rng.permutation(order):
             vpos = self.find_valid_locations(k, sol, model)
-            # TODO change random behaviour to a more reasonable heuristic maybe?
             cpos = rng.choice(np.argwhere(vpos))
             sol[cpos] += 1
 
@@ -564,13 +563,11 @@ class StorageOptimizer():
         b_stats = self.calc_stats()
         def _scalar_goals(goals: np.array):
             if cost_scaling is None:
-                return gmean(goals, weights=goal_weights)
+                return np.average(goals, weights=goal_weights)
             else:
-                # NOTE we just divide by the mean because standard normalization 
-                # yields negative numbers, which dont work with the geometric mean.
-                means = cost_scaling[0]
-                goals = np.divide(goals, means)
-                return gmean(goals, weights=goal_weights)
+                means, stds = cost_scaling[0], cost_scaling[1]
+                goals = np.divide((goals-means),stds)
+                return np.average(goals, weights=goal_weights)
  
         c_sol = sol
         c_stats = self.calc_solution_stats(c_sol, model)
@@ -710,7 +707,7 @@ class StorageOptimizer():
         hists = pd.concat(hists)
         idx = pd.MultiIndex.from_frame(hists[["rep", "iteration"]])
         hists.set_index(idx, inplace=True)
-        hists.drop(columns=["rep"], inplace=True)
+        hists.drop(columns=["rep", "iteration"], inplace=True)
 
         sols, idx, counts = np.unique(sols, axis=0, return_counts=True, return_index=True)    
         costs = costs[idx]

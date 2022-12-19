@@ -12,24 +12,27 @@ import time
 N = 7                   # locations
 K = 4                   # products
 strategy = "explore"    # "greedy" / "explore"
-goal_prios = [1,10]     # [surface priority, time priority]
+goal_prios = [1,1]     # surface priority, time priority
 prod_prios = [1,1,1,1]  # priorities for the different products
 
+PLOT = True             # plot the optimization procedure?
+SEED = 3424             # seed for the random number generators
+
 # start the optimizer
-A = StorageOptimizer(t0=5)   
+A = StorageOptimizer(t0=5) 
 
 # add the locations
 for n in range(N):
    sn = 10 if n > N/2 else 20
    tn = 1 + np.arange(n).sum()
-   ln = True if n > N/2 else False
+   ln = (n > N/2)
    A.add_location(sn=sn, tn=tn, ln=ln)
 
 # add the products
 for k in range(K):
    sk = 1
    ak = 2
-   pk = False if k == 2 else True
+   pk = (k != 2)
    A.add_product(sk=sk, ak=ak, pk=pk)
 
 # add some items
@@ -39,19 +42,19 @@ for item, loc in zip(objs, locs):
    A.add_item(loc, item)
 
 # order to optimize
-order = [1,1,0,1,2,1,0,2,1,0,3,3,3,3]
+order = [1,1,0,1,2,1,0,2,1,0,3,3]
 
 # ================================================================= #
 
-# print("\nStorage:\n", A)
-# print("\nStorage summary:\n", A.location_summary())
-# print("\nProduct summary:\n", A.product_summary())
+print("\nStorage:\n", A)
+print("\nStorage summary:\n", A.location_summary())
+print("\nProduct summary:\n", A.product_summary())
 
-# print("\nOrder:\n", order)
+print("\nOrder:\n", order)
 
 stime = time.perf_counter()
 sol, model, hist = A.optimize_order(order, n_walkers=10, 
-   strategy=strategy, random_state=0, goal_weights=goal_prios, 
+   strategy=strategy, random_state=SEED, goal_weights=goal_prios, 
    prod_weights=prod_prios)
 etime = time.perf_counter()
 print("\nSolution:\n", A.display_solution(sol, model))
@@ -73,7 +76,6 @@ print(f"{'New goals:':>{spacing}}{nbgoals[0]:>{spacing}.3f}{nbgoals[1]:>{spacing
 print("")
 
 # average access time 
-
 print(f"\n{'':>{spacing}}{'~~~~~~ mean access time (min) ~~~~~~':^{spacing*2}}\n")
 print(f"{'product':>{spacing}}{'solution':>{spacing}}{'total':>{spacing}}")
 for k in range(nb_stats.shape[0]):
@@ -88,3 +90,15 @@ print("\nTotal neighbors visited:", hist["neigh_size"].sum())
 print(f"\nTime elapsed: {etime-stime} s\n")
 
 # print("Training history:\n", hist)
+
+if PLOT:
+   import matplotlib.pyplot as plt
+   plt.rcParams['figure.constrained_layout.use'] = True
+   plt.figure(figsize=[6,6], )
+   for rep, rep_df in hist.reset_index().groupby("rep"):
+      plt.plot(rep_df["iteration"], rep_df["scalar_cost"], label=f"rep_{rep}")
+   plt.xlabel("LS Iteration")
+   plt.ylabel("Cost Function")
+   plt.legend()
+   plt.grid(True)
+   plt.show()
