@@ -9,14 +9,18 @@ from optimizer import StorageOptimizer
 import numpy as np
 import time
 
+# ================================================================= #
+
 N = 7                   # locations
 K = 4                   # products
 strategy = "explore"    # "greedy" / "explore"
-goal_prios = [1,1]      # surface priority, time priority
-prod_prios = [1,1,1,1]  # priorities for the different products
+goal_prios = [1,5]      # surface priority, time priority
+prod_prios = [1,2,1,1]  # priorities for the different products
 
 PLOT = True             # plot the optimization procedure?
 SEED = 3424             # seed for the random number generators
+
+# ================================================================= #
 
 # start the optimizer
 A = StorageOptimizer(t0=5) 
@@ -41,6 +45,8 @@ locs = [0,0,1,1,2,2]
 for item, loc in zip(objs, locs):
    A.add_item(loc, item)
 
+# ================================================================= #
+
 # order to optimize
 order = [1,1,0,1,2,1,0,2,1,0,3,3]
 
@@ -52,6 +58,8 @@ print("\nProduct summary:\n", A.product_summary())
 
 print("\nOrder:\n", order)
 
+# ================================================================= #
+
 stime = time.perf_counter()
 sol, model, hist = A.optimize_order(order, n_walkers=10, 
    strategy=strategy, random_state=SEED, goal_weights=goal_prios, 
@@ -59,10 +67,14 @@ sol, model, hist = A.optimize_order(order, n_walkers=10,
 etime = time.perf_counter()
 print("\nSolution:\n", A.display_solution(sol, model))
 
+# ================================================================= #
+
 b_stats = A.calc_stats()
 s_stats = A.calc_solution_stats(sol, model)
 new_A = A.add_solution(sol, model)
 nb_stats = new_A.calc_stats()
+
+# ================================================================= #
 
 spacing = 20
 print("")
@@ -86,10 +98,13 @@ for k in range(nb_stats.shape[0]):
       tot_avg_time = nb_stats[k,1]/nb_stats[k,2]
    print(f"{k:{spacing}}{sol_avg_time:>{spacing}.3f}{tot_avg_time:>{spacing}.3f}")
 
+# ================================================================= #
+
 print("\nTotal neighbors visited:", hist["neigh_size"].sum())
 print(f"\nTime elapsed: {etime-stime} s\n")
+print("Training history:\n", hist)
 
-# print("Training history:\n", hist)
+# ================================================================= #
 
 if PLOT:
    import matplotlib.pyplot as plt

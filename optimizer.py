@@ -643,7 +643,7 @@ class StorageOptimizer():
             nsols_norm: int = 100,
             nprocs: int = mp.cpu_count(),
             random_state: int = 0
-            ) -> pd.DataFrame:
+            ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
         """ Optimizes a given incoming order with parallel local search. """
 
