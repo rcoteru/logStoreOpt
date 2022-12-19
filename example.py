@@ -12,7 +12,7 @@ import time
 N = 7                   # locations
 K = 4                   # products
 strategy = "explore"    # "greedy" / "explore"
-goal_prios = [1,1]     # surface priority, time priority
+goal_prios = [1,1]      # surface priority, time priority
 prod_prios = [1,1,1,1]  # priorities for the different products
 
 PLOT = True             # plot the optimization procedure?
