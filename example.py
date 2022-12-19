@@ -2,7 +2,7 @@
 This script provides an example use case for the optimizer.
 
 @author Raúl Coterillo
-@version November 2022
+@version December 2022
 """
 
 from optimizer import StorageOptimizer
