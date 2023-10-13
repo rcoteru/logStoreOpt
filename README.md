@@ -13,7 +13,7 @@ Python-based prototype for the optimization of the incoming orders to a logistic
 
 ## Algorithm
 
-The solutions of the the problem is found through a local search based algortihm, where several randomly generated initial solutions are optimized in parallel. The cost functions are normalized based on randomly generated solutions and scalarized using a weighted geometric mean. One may set the weights to prioritize one objective over another.
+The solutions of the the problem is found through a local search algorithm, where several randomly generated initial solutions are optimized in parallel. The cost functions are normalized based on randomly generated solutions and scalarized using a weighted geometric mean. One may set the weights to prioritize one objective over another.
 
 ## Environment / Setup
 
